@@ -46,6 +46,7 @@ MinidumpDescriptor::MinidumpDescriptor(const MinidumpDescriptor& descriptor)
     : mode_(descriptor.mode_),
       fd_(descriptor.fd_),
       directory_(descriptor.directory_),
+      filename_(descriptor.filename_),
       c_path_(NULL),
       size_limit_(descriptor.size_limit_),
       address_within_principal_mapping_(
@@ -67,6 +68,7 @@ MinidumpDescriptor& MinidumpDescriptor::operator=(
   mode_ = descriptor.mode_;
   fd_ = descriptor.fd_;
   directory_ = descriptor.directory_;
+  filename_ = descriptor.filename_;
   path_.clear();
   if (c_path_) {
     // This descriptor already had a path set, so generate a new one.
@@ -86,14 +88,18 @@ MinidumpDescriptor& MinidumpDescriptor::operator=(
 void MinidumpDescriptor::UpdatePath() {
   assert(mode_ == kWriteMinidumpToFile && !directory_.empty());
 
-  GUID guid;
-  char guid_str[kGUIDStringLength + 1];
-  if (!CreateGUID(&guid) || !GUIDToString(&guid, guid_str, sizeof(guid_str))) {
-    assert(false);
+  if (filename_.empty()) {
+    GUID guid;
+    char guid_str[kGUIDStringLength + 1];
+    if (!CreateGUID(&guid) || !GUIDToString(&guid, guid_str, sizeof(guid_str))) {
+      assert(false);
+    }
+
+    filename_ = std::string(guid_str) + ".dmp";
   }
 
   path_.clear();
-  path_ = directory_ + "/" + guid_str + ".dmp";
+  path_ = directory_ + "/" + filename_;
   c_path_ = path_.c_str();
 }
 

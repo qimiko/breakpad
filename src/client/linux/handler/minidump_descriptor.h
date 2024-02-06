@@ -57,10 +57,11 @@ class MinidumpDescriptor {
         address_within_principal_mapping_(0),
         skip_dump_if_principal_mapping_not_referenced_(false) {}
 
-  explicit MinidumpDescriptor(const string& directory)
+  explicit MinidumpDescriptor(const string& directory, const string& filename = "")
       : mode_(kWriteMinidumpToFile),
         fd_(-1),
         directory_(directory),
+        filename_(filename),
         c_path_(NULL),
         size_limit_(-1),
         address_within_principal_mapping_(0),
@@ -158,6 +159,9 @@ class MinidumpDescriptor {
 
   // The full path to the generated minidump.
   string path_;
+
+  // Filename of the generated minidump. If empty, a GUID will be created instead.
+  string filename_{};
 
   // The C string of |path_|. Precomputed so it can be access from a compromised
   // context.
