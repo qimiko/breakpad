@@ -16,7 +16,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Android")
 
 	FetchContent_Declare(lss
 		GIT_REPOSITORY https://chromium.googlesource.com/linux-syscall-support.git
-		GIT_TAG v2022.10.12
+		GIT_TAG v2024.02.01
 		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/third_party/lss
 	)
 
