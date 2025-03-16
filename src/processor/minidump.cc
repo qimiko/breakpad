@@ -32,6 +32,11 @@
 //
 // Author: Mark Mentovai
 
+// For <inttypes.h> PRI* macros, before anything else might #include it.
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif  /* __STDC_FORMAT_MACROS */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>  // Must come first
 #endif
@@ -42,6 +47,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
 
@@ -56,8 +62,6 @@
 #include <limits>
 #include <utility>
 
-#include "processor/range_map-inl.h"
-
 #include "common/macros.h"
 #include "common/scoped_ptr.h"
 #include "common/stdio_wrapper.h"
@@ -66,6 +70,7 @@
 #include "processor/basic_code_modules.h"
 #include "processor/convert_old_arm64_context.h"
 #include "processor/logging.h"
+#include "processor/range_map-inl.h"
 
 namespace google_breakpad {
 
@@ -820,7 +825,7 @@ bool MinidumpContext::Read(uint32_t expected_size) {
           // Context may include xsave registers and so be larger than
           // sizeof(MDRawContextX86). For now we skip this extended data.
           if (context_flags & MD_CONTEXT_X86_XSTATE) {
-            size_t bytes_left = expected_size - sizeof(MDRawContextX86);
+            int64_t bytes_left = expected_size - sizeof(MDRawContextX86);
             if (bytes_left > kMaxXSaveAreaSize) {
               BPLOG(ERROR) << "MinidumpContext oversized xstate area";
               return false;
@@ -897,8 +902,12 @@ bool MinidumpContext::Read(uint32_t expected_size) {
 
         // Skip extended xstate data if present in X86 context.
         if (context_flags & MD_CONTEXT_X86_XSTATE) {
-          minidump_->SeekSet((minidump_->Tell() - sizeof(MDRawContextX86)) +
-                             expected_size);
+          if (!minidump_->SeekSet(
+                  (minidump_->Tell() - sizeof(MDRawContextX86)) +
+                  expected_size)) {
+            BPLOG(ERROR) << "MinidumpContext cannot seek to past xstate data";
+            return false;
+          }
         }
 
         break;
@@ -2561,7 +2570,7 @@ string MinidumpModule::debug_file() const {
           // UTF-16, so pass false as the swap argument.
           scoped_ptr<string> new_file(UTF16ToUTF8(string_utf16, false));
           if (new_file.get() != nullptr) {
-            file = *new_file;
+            file = string(*new_file);
           }
         }
       }
@@ -5459,9 +5468,12 @@ bool MinidumpCrashpadInfo::Read(uint32_t expected_size) {
       module_crashpad_info_links_.push_back(
           module_crashpad_info_links[index].minidump_module_list_index);
       module_crashpad_info_.push_back(module_crashpad_info);
-      module_crashpad_info_list_annotations_.push_back(list_annotations);
-      module_crashpad_info_simple_annotations_.push_back(simple_annotations);
-      module_crashpad_info_annotation_objects_.push_back(annotation_objects);
+      module_crashpad_info_list_annotations_.push_back(std::move(
+          list_annotations));
+      module_crashpad_info_simple_annotations_.push_back(std::move(
+          simple_annotations));
+      module_crashpad_info_annotation_objects_.push_back(std::move(
+          annotation_objects));
     }
   }
 
@@ -6263,7 +6275,7 @@ bool Minidump::ReadStringList(
       return false;
     }
 
-    string_list->push_back(entry);
+    string_list->push_back(std::move(entry));
   }
 
   return true;
@@ -6393,9 +6405,9 @@ bool Minidump::ReadCrashpadAnnotationsList(
       return false;
     }
 
-    MinidumpCrashpadInfo::AnnotationObject object = {annotation.type, name,
-                                                     value_data};
-    annotations_list->push_back(object);
+    MinidumpCrashpadInfo::AnnotationObject object{annotation.type, name,
+                                                  value_data};
+    annotations_list->push_back(std::move(object));
   }
 
   return true;

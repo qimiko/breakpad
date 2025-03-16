@@ -354,8 +354,9 @@ class DumpSymbols::DumperLineToModule:
                    vector<Module::Line>* lines,
                    std::map<uint32_t, Module::File*>* files) {
     DwarfLineToModule handler(module, compilation_dir_, lines, files);
-    LineInfo parser(program, length, byte_reader_, nullptr, 0,
-                                  nullptr, 0, &handler);
+    LineInfo parser(program, length, byte_reader_, string_section,
+                                  string_section_length, line_string_section,
+                                  line_string_section_length, &handler);
     parser.Start();
   }
  private:
@@ -394,7 +395,7 @@ bool DumpSymbols::CreateEmptyModule(scoped_ptr<Module>& module) {
   // In certain cases, it is possible that architecture info can't be reliably
   // determined, e.g. new architectures that breakpad is unware of. In that
   // case, avoid crashing and return false instead.
-  if (selected_arch_name == kUnknownArchName) {
+  if (strcmp(selected_arch_name, kUnknownArchName) == 0) {
     return false;
   }
 
@@ -406,7 +407,7 @@ bool DumpSymbols::CreateEmptyModule(scoped_ptr<Module>& module) {
   selected_object_name_ = object_filename_;
   if (object_files_.size() > 1) {
     selected_object_name_ += ", architecture ";
-    selected_object_name_ + selected_arch_name;
+    selected_object_name_ += selected_arch_name;
   }
 
   // Compute a module name, to appear in the MODULE record.
@@ -537,7 +538,7 @@ void DumpSymbols::ReadDwarf(google_breakpad::Module* module,
         selected_object_name_, offset);
     }
     DwarfCUToModule root_handler(&file_context, &line_to_module,
-                                 &ranges_handler, reporter,
+                                 &ranges_handler, reporter.get(),
                                  handle_inline);
     // Make a Dwarf2Handler that drives our DIEHandler.
     DIEDispatcher die_dispatcher(&root_handler);
